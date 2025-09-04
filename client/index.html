@@ -1,13 +1,139 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="lofi">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vite + TS</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>hrūt.journal</title>
   </head>
-  <body>
-    <div id="app"></div>
+  <body class="min-h-screen bg-base-200">
+    <div class="navbar bg-base-200 grid grid-cols-[auto_1fr_auto] items-center relative">
+      <!-- Left (fixed width for balance) -->
+      <div class="col-start-1 w-28 flex justify-start">
+        <div class="dropdown">
+          <label tabindex="0" class="btn btn-sm ml-5" aria-label="Open menu">☰</label>
+          <!-- Large dropdown panel -->
+          <div
+            tabindex="0"
+            class="dropdown-content z-[100] mt-3 w-[92vw] max-w-3xl p-4 bg-base-100 rounded-box shadow"
+          >
+            <div class="divider my-2">Past Entries</div>
+
+            <!-- Accordion: Year → Month → Week → Day -->
+            <div class="space-y-2">
+              <details class="collapse bg-base-200">
+                <summary class="collapse-title text-md font-medium">Year</summary>
+                <div class="collapse-content">
+                  <ul class="menu menu-sm grid-cols-5 gap-1 grid">
+                    <li><button data-year="2025">2025</button></li>
+                    <li><button data-year="2024">2024</button></li>
+                    <li><button data-year="2023">2023</button></li>
+                    <li><button data-year="2022">2022</button></li>
+                    <li><button data-year="2021">2021</button></li>
+                  </ul>
+                </div>
+              </details>
+
+              <details class="collapse bg-base-200">
+                <summary class="collapse-title text-md font-medium">Month</summary>
+                <div class="collapse-content">
+                  <ul class="menu menu-sm grid grid-cols-3 gap-1">
+                    <li><button data-month="0">Jan</button></li>
+                    <li><button data-month="1">Feb</button></li>
+                    <li><button data-month="2">Mar</button></li>
+                    <li><button data-month="3">Apr</button></li>
+                    <li><button data-month="4">May</button></li>
+                    <li><button data-month="5">Jun</button></li>
+                    <li><button data-month="6">Jul</button></li>
+                    <li><button data-month="7">Aug</button></li>
+                    <li><button data-month="8">Sep</button></li>
+                    <li><button data-month="9">Oct</button></li>
+                    <li><button data-month="10">Nov</button></li>
+                    <li><button data-month="11">Dec</button></li>
+                  </ul>
+                </div>
+              </details>
+
+              <details class="collapse bg-base-200">
+                <summary class="collapse-title text-md font-medium">Week</summary>
+                <div class="collapse-content">
+                  <ul class="menu menu-sm grid grid-cols-5 gap-1">
+                    <li><button data-week="1">W1</button></li>
+                    <li><button data-week="2">W2</button></li>
+                    <li><button data-week="3">W3</button></li>
+                    <li><button data-week="4">W4</button></li>
+                    <li><button data-week="5">W5</button></li>
+                  </ul>
+                </div>
+              </details>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Center title overlay (always truly centered) -->
+      <div class="col-start-2 flex justify-self-center">
+        <a class="text-xl font-bold">hrūt</a>
+      </div>
+
+      <!-- Right (fixed width for balance) -->
+      <div class="col-start-3 w-28 flex justify-end">
+        <a class="btn btn-sm mr-5 btn-square sm:hidden" aria-label="New entry">+</a>
+        <a class="btn btn-sm mr-5 hidden sm:inline-flex">New Entry</a>
+      </div>
+    </div>
+
+    <!-- MAIN CONTENT: Overview (left) + Entries (right) -->
+    <main class="grid grid-cols-1 md:grid-cols-[2fr,1fr] gap-4 p-6">
+      <!-- Overview (blended with backdrop, no card border/shadow look) -->
+      <section>
+        <div class="card bg-base-200 shadow-none">
+          <div class="card-body">
+            <div class="breadcrumbs text-md font-semibold flex flex-wrap">
+              <ul id="crumbs">
+                <li><a data-scope="summary">Summary</a></li>
+                <li><a data-scope="year">2025</a></li>
+                <li><a data-scope="month">March</a></li>
+                <li data-scope="week">Week 1</li>
+              </ul>
+            </div>
+            <div class="flex justify-center">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div class="card bg-base-200 shadow-none">
+                  <div class="card-body p-4">
+                    <h3 class="font-semibold">Emotions</h3>
+                    <div class="space-x-2">
+                      <span class="badge">Joy</span>
+                      <span class="badge">Calm</span>
+                      <span class="badge">Stress</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="card bg-base-200 shadow-none">
+                  <div class="card-body p-4">
+                    <h3 class="font-semibold">Themes</h3>
+                    <div class="flex flex-wrap gap-2">
+                      <span class="badge badge-outline">Work</span>
+                      <span class="badge badge-outline">Routine</span>
+                      <span class="badge badge-outline">Family</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Entries list (distinct cards) + pagination -->
+      <aside>
+        <h2 class="font-bold mb-2">Entries</h2>
+        <div class="space-y-3" id="entries"></div>
+        <div class="join flex justify-center mt-4" id="pager"></div>
+      </aside>
+    </main>
+
+    
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
