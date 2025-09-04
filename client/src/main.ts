@@ -1,9 +1,25 @@
 import './style.css'
-import { format, parseISO, set, startOfMonth, startOfWeek, getISOWeek, startOfYear, endOfYear, endOfMonth, endOfWeek, startOfDay, endOfDay } from 'date-fns'
+import { format, parseISO, set, startOfMonth, startOfWeek } from 'date-fns'
 
 type Scope = 'summary'|'year'|'month'|'week'|'day'
 type Analysis = { sentiment:'positive'|'neutral'|'negative'; intensity:number; emotions:string[]; themes:string[] }
 type Note = { id:string; createdAt:string; text:string; analysis:Analysis }
+
+function openEntryModal(n: Note) {
+  const modal = document.getElementById('entryModal') as HTMLDialogElement;
+  const title = document.getElementById('entryModalTitle')!;
+  const text = document.getElementById('entryModalText')!;
+
+  title.textContent = `${formatDisplayDate(n.createdAt)}`;
+  text.textContent = n.text;
+
+  modal.showModal();
+}
+
+function formatDisplayDate(isoDate: string): string {
+  const d = parseISO(isoDate);
+  return format(d, "d.M.yyyy"); // e.g. 9.3.2025
+}
 
 const state = {
   dateISO: format(new Date(), 'yyyy-MM-dd'), // Use current date
@@ -15,25 +31,6 @@ const state = {
 
 const iso = (d: Date) => format(d, 'yyyy-MM-dd')
 
-// Function to get date range based on scope
-function getDateRange(dateISO: string, scope: Scope) {
-  const d = parseISO(dateISO)
-  
-  switch (scope) {
-    case 'summary':
-      return { start: startOfYear(d), end: endOfYear(d) }
-    case 'year':
-      return { start: startOfYear(d), end: endOfYear(d) }
-    case 'month':
-      return { start: startOfMonth(d), end: endOfMonth(d) }
-    case 'week':
-      return { start: startOfWeek(d, { weekStartsOn: 1 }), end: endOfWeek(d, { weekStartsOn: 1 }) }
-    case 'day':
-      return { start: startOfDay(d), end: endOfDay(d) }
-    default:
-      return { start: startOfWeek(d, { weekStartsOn: 1 }), end: endOfWeek(d, { weekStartsOn: 1 }) }
-  }
-}
 
 async function refresh() {
   await loadEntries()
@@ -43,19 +40,15 @@ async function refresh() {
 }
 
 async function loadEntries() {
-  try {
-    const res = await fetch(`/api/entries?scope=${state.scope}&date=${state.dateISO}`)
-    if (res.ok) {
-      state.notes = await res.json()
-    } else {
-      console.error('Failed to load entries:', res.status)
-      state.notes = []
-    }
-    state.page = 1
-  } catch (error) {
-    console.error('Error loading entries:', error)
+  const scopeParam = state.scope === 'summary' ? 'year' : state.scope
+  const res = await fetch(`/api/entries?scope=${scopeParam}&date=${state.dateISO}`)
+  if (res.ok) {
+    state.notes = await res.json()
+  } else {
+    console.error('Failed to load entries:', res.status)
     state.notes = []
   }
+  state.page = 1
 }
 
 function renderBreadcrumbs() {
@@ -63,7 +56,7 @@ function renderBreadcrumbs() {
   const crumbs = document.getElementById('crumbs') as HTMLUListElement
   const year = format(d, 'yyyy')
   const monthName = format(d, 'LLLL')
-  const dayName = format(d, 'MMM do')
+  const dayName = format(d, 'd.M.yyyy')
   
   // Calculate week number within the month (not ISO week)
   const monthStart = startOfMonth(d)
@@ -101,40 +94,34 @@ function renderBreadcrumbs() {
 function renderEntries() {
   const wrap = document.getElementById('entries')!
   wrap.innerHTML = ''
-  
+
   if (state.notes.length === 0) {
     wrap.innerHTML = '<div class="text-center text-base-content/60 py-8">No entries found for this period</div>'
     renderPager()
     return
   }
-  
+
   const start = (state.page - 1) * state.perPage
   const pageNotes = state.notes.slice(start, start + state.perPage)
-  
+
   pageNotes.forEach(n => {
     const card = document.createElement('div')
     card.className = 'card bg-base-100 shadow cursor-pointer hover:shadow-lg transition-shadow'
     card.innerHTML = `
       <div class="card-body p-4">
-        <h3 class="font-semibold">${format(parseISO(n.createdAt), 'MMM do, yyyy')}</h3>
+        <div class="flex justify-between items-start mb-2">
+          <h3 class="font-semibold">${formatDisplayDate(n.createdAt)}</h3>
+        </div>
         <p class="text-sm opacity-70 line-clamp-3">${n.text}</p>
         <div class="flex flex-wrap gap-1 mt-2">
-          ${n.analysis.emotions.slice(0, 3).map(emotion => 
-            `<span class="badge badge-sm">${emotion}</span>`
-          ).join('')}
         </div>
       </div>`
-    
-    // Add click handler to view full entry
     card.addEventListener('click', () => {
-      state.dateISO = n.createdAt
-      state.scope = 'day'
-      refresh()
+      openEntryModal(n)
     })
-    
     wrap.appendChild(card)
   })
-  
+
   renderPager()
 }
 
@@ -177,15 +164,24 @@ function renderPager() {
 }
 
 function renderOverview() {
-  if (state.notes.length === 0) return
+  if (state.notes.length === 0) {
+    const emotionsWrap = document.getElementById('emotionsWrap')
+    const themesWrap = document.getElementById('themesWrap')
+    
+    if (emotionsWrap) emotionsWrap.innerHTML = '<span class="text-base-content/60">No emotions detected</span>'
+    if (themesWrap) themesWrap.innerHTML = '<span class="text-base-content/60">No themes detected</span>'
+    return
+  }
   
   // Aggregate emotions and themes from all entries
   const allEmotions: string[] = []
   const allThemes: string[] = []
+  const sentiments = { positive: 0, neutral: 0, negative: 0 }
   
   state.notes.forEach(note => {
     allEmotions.push(...note.analysis.emotions)
     allThemes.push(...note.analysis.themes)
+    sentiments[note.analysis.sentiment]++
   })
   
   // Count frequency and get top items
@@ -211,26 +207,16 @@ function renderOverview() {
     .map(([theme]) => theme)
   
   // Update emotions section
-  const emotionsSection = document.querySelector('.card-body h3:first-child')?.parentElement
-  if (emotionsSection) {
-    const emotionsDiv = emotionsSection.querySelector('.space-x-2, .flex')
-    if (emotionsDiv) {
-      emotionsDiv.innerHTML = topEmotions.length > 0 
-        ? topEmotions.map(emotion => `<span class="badge">${emotion}</span>`).join('')
-        : '<span class="text-base-content/60">No emotions detected</span>'
-    }
-  }
+  const emotionsWrap = document.getElementById('emotionsWrap')!
+  emotionsWrap.innerHTML = topEmotions.length > 0 
+    ? topEmotions.map(emotion => `<span class="badge badge-soft">${emotion}</span>`).join('')
+    : '<span class="text-base-content/60">No emotions detected</span>'
   
   // Update themes section
-  const themesSection = document.querySelectorAll('.card-body h3')[1]?.parentElement
-  if (themesSection) {
-    const themesDiv = themesSection.querySelector('.flex')
-    if (themesDiv) {
-      themesDiv.innerHTML = topThemes.length > 0
-        ? topThemes.map(theme => `<span class="badge badge-outline">${theme}</span>`).join('')
-        : '<span class="text-base-content/60">No themes detected</span>'
-    }
-  }
+  const themesWrap = document.getElementById('themesWrap')!
+  themesWrap.innerHTML = topThemes.length > 0
+    ? topThemes.map(theme => `<span class="badge badge-soft">${theme}</span>`).join('')
+    : '<span class="text-base-content/60">No themes detected</span>'
 }
 
 /* ---------- EVENT DELEGATION FOR DROPDOWN ---------- */
@@ -284,19 +270,224 @@ document.addEventListener('click', (ev) => {
   }
 })
 
-// Handle New Entry button clicks
-document.addEventListener('click', (ev) => {
-  const el = ev.target as HTMLElement
-  if (el.matches('[aria-label="New entry"], .btn:has-text("New Entry")')) {
-    // Navigate to today and day scope for new entry
-    state.dateISO = format(new Date(), 'yyyy-MM-dd')
-    state.scope = 'day'
-    refresh()
-    
-    // Here you could open a modal or navigate to an entry creation page
-    console.log('Navigate to new entry creation')
-  }
-})
+// Enhanced prompts with sentiment-based and time-based logic
+const PROMPTS = {
+  daily: {
+    positive: [
+      "What made today feel especially bright?",
+      "Which moment gave you the most energy today?",
+      "What's one thing you're grateful for right now?",
+      "How can you carry today's good vibes forward?"
+    ],
+    neutral: [
+      "What's one small thing that went well today?",
+      "Where did you feel most like yourself today?",
+      "What helped you feel steady today?",
+      "What's something you learned about yourself today?"
+    ],
+    negative: [
+      "What's one gentle thing you can do for yourself right now?",
+      "What helped you get through the tough moments today?",
+      "What would make tomorrow feel a little easier?",
+      "What's the smallest step forward you could take?"
+    ]
+  },
+  weekend: [
+    "Looking back at this week, what pattern do you notice in your emotions?",
+    "What themes kept coming up in your week?",
+    "Which day this week felt most aligned with who you are?",
+    "What would you like to do differently next week?",
+    "What story does your week tell about your growth?"
+  ],
+  monthly: [
+    "What emotional journey did you take this month?",
+    "Which themes dominated your month, and how do you feel about them?",
+    "What patterns in your emotions surprise you looking back?",
+    "How have you grown from the beginning of this month?",
+    "What would you like to focus on next month based on your patterns?"
+  ],
+  yearly: [
+    "What's the biggest emotional shift you notice over this year?",
+    "Which themes have been most persistent in your life?",
+    "How has your relationship with yourself evolved?",
+    "What patterns do you see that you want to change or strengthen?",
+    "What story does this year tell about who you're becoming?"
+  ]
+}
 
-/* ---------- INIT ---------- */
+function getRecentSentiment(): 'positive' | 'neutral' | 'negative' {
+  if (state.notes.length === 0) return 'neutral'
+  
+  // Look at last few entries to gauge recent sentiment
+  const recent = state.notes.slice(0, 3)
+  const sentimentCounts = { positive: 0, neutral: 0, negative: 0 }
+  
+  recent.forEach(note => {
+    sentimentCounts[note.analysis.sentiment]++
+  })
+  
+  // Return the dominant sentiment
+  const max = Math.max(sentimentCounts.positive, sentimentCounts.neutral, sentimentCounts.negative)
+  if (sentimentCounts.positive === max) return 'positive'
+  if (sentimentCounts.negative === max) return 'negative'
+  return 'neutral'
+}
+
+function isWeekend(): boolean {
+  const day = new Date().getDay() // 0 = Sunday, 6 = Saturday
+  return day === 0 || day === 5 || day === 6 // Fri, Sat, Sun
+}
+
+function choosePrompt(): string {
+  const now = new Date()
+  const dayOfMonth = now.getDate()
+  const dayOfYear = Math.floor((now.getTime() - new Date(now.getFullYear(), 0, 0).getTime()) / (1000 * 60 * 60 * 24))
+  
+  let promptPool: string[]
+  let prefix = "Suggested Prompt: "
+  
+  // Yearly prompts (once per year, around New Year or birthday)
+  if (dayOfYear <= 7 || dayOfYear >= 358) {
+    promptPool = PROMPTS.yearly
+    prefix = "Year-end reflection: "
+  }
+  // Monthly prompts (first or last 3 days of month)
+  else if (dayOfMonth <= 3 || dayOfMonth >= 28) {
+    promptPool = PROMPTS.monthly
+    prefix = "Monthly reflection: "
+  }
+  // Weekend prompts (Fri, Sat, Sun) - focus on week summary
+  else if (isWeekend()) {
+    promptPool = PROMPTS.weekend
+    prefix = "Week reflection: "
+  }
+  // Daily prompts based on recent sentiment
+  else {
+    const sentiment = getRecentSentiment()
+    promptPool = PROMPTS.daily[sentiment]
+    prefix = "Daily prompt: "
+  }
+  
+  // Pick random prompt from the appropriate pool
+  const randomPrompt = promptPool[Math.floor(Math.random() * promptPool.length)]
+  return prefix + randomPrompt
+}
+
+async function analyzeText(text: string): Promise<Analysis> {
+  try {
+    console.log('Calling NLP analysis for text:', text.substring(0, 50) + '...')
+    
+    const response = await fetch('http://localhost:8000/nlp/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text })
+    })
+    
+    console.log('NLP response status:', response.status)
+    
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error('NLP API error:', errorText)
+      throw new Error(`Analysis failed: ${response.status} - ${errorText}`)
+    }
+    
+    const result = await response.json()
+    console.log('NLP analysis result:', result)
+    return result
+  } catch (error) {
+    console.error('Sentiment analysis failed:', error)
+    // Return default analysis if API fails
+    return {
+      sentiment: 'neutral',
+      intensity: 2,
+      emotions: [],
+      themes: []
+    }
+  }
+}
+
+function wireNewEntryModal() {
+  const modal = document.getElementById('newEntryModal') as HTMLDialogElement
+  const openButtons = [
+    document.getElementById('btnNewEntry'),
+    document.getElementById('btnNewEntryMobile')
+  ].filter(Boolean) as HTMLElement[]
+
+  const entryText = document.getElementById('entryText') as HTMLTextAreaElement
+  const suggested = document.getElementById('suggestedPrompt')!
+  const dateInput = document.getElementById('entryDate') as HTMLInputElement
+
+  const reset = async () => {
+    entryText.value = ''
+    dateInput.value = format(new Date(), 'yyyy-MM-dd')
+    suggested.textContent = 'Loading prompt...'
+    const prompt = await choosePrompt()
+    suggested.textContent = prompt
+  }
+
+  openButtons.forEach(btn => btn.addEventListener('click', () => { reset(); modal.showModal() }))
+
+  // Save with sentiment analysis
+  document.getElementById('btnSaveEntry')?.addEventListener('click', async (e) => {
+    e.preventDefault()
+    const textToSave = entryText.value.trim()
+    if (!textToSave) { 
+      alert('Please write something.') 
+      return 
+    }
+    
+    const createdAt = dateInput.value || format(new Date(), 'yyyy-MM-dd')
+    const btn = e.currentTarget as HTMLButtonElement
+    const originalText = btn.textContent
+    btn.disabled = true
+    
+    try {
+      btn.textContent = 'Analyzing...'
+      console.log('Starting text analysis for:', textToSave.substring(0, 50) + '...')
+      
+      // Analyze the text for sentiment
+      const analysis = await analyzeText(textToSave)
+      console.log('Got analysis:', analysis)
+      
+      btn.textContent = 'Saving...'
+      
+      const payload = { 
+        text: textToSave, 
+        createdAt,
+        analysis
+      }
+      
+      console.log('Saving entry with payload:', payload)
+      
+      const res = await fetch('http://localhost:8000/api/entries/text', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify(payload)
+      })
+      
+      console.log('Save response status:', res.status)
+      
+      if (!res.ok) {
+        const errorText = await res.text()
+        console.error('Save API error:', errorText)
+        throw new Error(errorText || res.statusText)
+      }
+      
+      const savedEntry = await res.json()
+      console.log('Entry saved successfully:', savedEntry)
+      
+      await refresh()
+      modal.close()
+      
+    } catch (err) {
+      console.error('Save failed:', err)
+      alert(`Could not save entry: ${err instanceof Error ? err.message : 'Unknown error'}`)
+    } finally {
+      btn.disabled = false
+      btn.textContent = originalText || 'Save'
+    }
+  })
+}
+
+wireNewEntryModal()
 refresh()

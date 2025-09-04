@@ -77,14 +77,14 @@
 
       <!-- Right (fixed width for balance) -->
       <div class="col-start-3 w-28 flex justify-end">
-        <a class="btn btn-sm mr-5 btn-square sm:hidden" aria-label="New entry">+</a>
-        <a class="btn btn-sm mr-5 hidden sm:inline-flex">New Entry</a>
+       <button id="btnNewEntryMobile" class="btn btn-sm mr-5 btn-square sm:hidden" aria-label="New entry">+</button>
+       <button id="btnNewEntry" class="btn btn-sm mr-5 hidden sm:inline-flex">New Entry</button>
+      </div>
       </div>
     </div>
 
     <!-- MAIN CONTENT: Overview (left) + Entries (right) -->
     <main class="grid grid-cols-1 md:grid-cols-[2fr,1fr] gap-4 p-6">
-      <!-- Overview (blended with backdrop, no card border/shadow look) -->
       <section>
         <div class="card bg-base-200 shadow-none">
           <div class="card-body">
@@ -96,31 +96,25 @@
                 <li data-scope="week">Week 1</li>
               </ul>
             </div>
-            <div class="flex justify-center">
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div class="card bg-base-200 shadow-none">
+            
+            <div class="flex justify-items-center">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
+                <div class="card bg-base-100 shadow-sm border border-base-300">
                   <div class="card-body p-4">
-                    <h3 class="font-semibold">Emotions</h3>
-                    <div class="space-x-2">
-                      <span class="badge">Joy</span>
-                      <span class="badge">Calm</span>
-                      <span class="badge">Stress</span>
-                    </div>
+                    <h3 class="font-bold text">Most Common Emotions</h3>
+                    <div id="emotionsWrap" class="flex flex-wrap gap-2 mt-2"></div>
                   </div>
                 </div>
 
-                <div class="card bg-base-200 shadow-none">
+                <div class="card bg-base-100 shadow-sm border border-base-300">
                   <div class="card-body p-4">
-                    <h3 class="font-semibold">Themes</h3>
-                    <div class="flex flex-wrap gap-2">
-                      <span class="badge badge-outline">Work</span>
-                      <span class="badge badge-outline">Routine</span>
-                      <span class="badge badge-outline">Family</span>
-                    </div>
+                    <h3 class="font-bold text">Key Themes</h3>
+                    <div id="themesWrap" class="flex flex-wrap gap-2 mt-2"></div>
                   </div>
                 </div>
               </div>
             </div>
+
           </div>
         </div>
       </section>
@@ -133,7 +127,57 @@
       </aside>
     </main>
 
-    
-    <script type="module" src="/src/main.ts"></script>
-  </body>
-</html>
+    <!-- New Entry Modal -->
+    <dialog id="newEntryModal" class="modal">
+      <div class="modal-box max-w-2xl">
+        <form method="dialog">
+          <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" aria-label="Close">✕</button>
+        </form>
+
+        <h3 class="font-bold text-lg">New Entry -
+            <input id="entryDate" type="date" class="input input-sm input-bordered w-auto" />
+     </h3>
+
+        <!-- Suggested prompt (always visible) -->
+        <div class="mt-2 flex items-start justify-between gap-2">
+          <div class="text-sm italic opacity-80" id="suggestedPrompt">
+            <!-- filled by JS -->
+          </div>
+        </div>
+
+        <!-- Entry textarea -->
+        <div class="form-control mt-3 flex justify-center">
+          <textarea id="entryText" class="textarea textarea-bordered h-40" placeholder="Start writing…"></textarea>
+        </div>
+
+        <div class="modal-action justify-end">
+          <!-- Bottom-right: actions -->
+          <div class="flex items-center gap-2">
+            <button id="btnSaveEntry" class="btn btn-primary">Save</button>
+            <form method="dialog"><button class="btn">Cancel</button></form>
+          </div>
+        </div>
+      </div>
+      <form method="dialog" class="modal-backdrop"><button>close</button></form>
+    </dialog>
+
+    <dialog id="entryModal" class="modal">
+      <div class="modal-box max-w-2xl">
+        <form method="dialog">
+          <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" aria-label="Close">✕</button>
+        </form>
+
+        <h3 id="entryModalTitle" class="font-bold text-lg">Entry</h3>
+        <p id="entryModalText" class="mt-3 whitespace-pre-wrap"></p>
+
+       
+        <div class="modal-action justify-end">
+          <form method="dialog"><button class="btn">Close</button></form>
+        </div>
+      </div>
+      <form method="dialog" class="modal-backdrop"><button>close</button></form>
+    </dialog>
+
+        <script type="module" src="/src/main.ts"></script>
+      </body>
+    </html>
