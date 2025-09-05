@@ -1,16 +1,20 @@
+﻿# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.python-version
+
 # Virtual environments
 .venv/
 venv/
 env/
 
-# Node modules
+# Node
 node_modules/
-
-# Build outputs
 dist/
 dist-ssr/
 
-# Env files
+# Env / secrets
 .env
 .env.*
 *.env
